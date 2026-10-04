@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">ClefCam camera with a C in its lens</title>
+  <defs><linearGradient id="blue" x2="1" y2="1"><stop stop-color="#416fff"/><stop offset="1" stop-color="#254ed9"/></linearGradient></defs>
+  <rect width="512" height="512" fill="url(#blue)"/>
+  <path d="M112 158h61l22-36h122l22 36h61c22 0 40 18 40 40v154c0 22-18 40-40 40H112c-22 0-40-18-40-40V198c0-22 18-40 40-40Z" fill="#fff"/>
+  <circle cx="256" cy="273" r="88" fill="#315eff"/>
+  <path d="M287 235a49 49 0 1 0 0 76" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="380" cy="208" r="12" fill="#315eff"/>
+</svg>

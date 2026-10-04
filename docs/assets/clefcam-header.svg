@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="840" viewBox="0 0 1440 840" role="img" aria-labelledby="title desc">
+  <title id="title">ClefCam — a camera that follows your rules</title>
+  <desc id="desc">Illustrated camera interface showing a blue mug on a wooden table. Mug visible and Wooden surface rules are matched, above a camera shutter. This is an illustrative scene, not a live model result.</desc>
+  <defs>
+    <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f8faff"/><stop offset="1" stop-color="#e7edff"/></linearGradient>
+    <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#f5f3ed"/><stop offset="1" stop-color="#deddd3"/></linearGradient>
+    <linearGradient id="wood" x2="1" y2="1"><stop stop-color="#d2a97b"/><stop offset=".65" stop-color="#b88960"/><stop offset="1" stop-color="#946846"/></linearGradient>
+    <linearGradient id="mug" x2="1" y2=".2"><stop stop-color="#244fd9"/><stop offset=".38" stop-color="#4776ff"/><stop offset="1" stop-color="#244ab8"/></linearGradient>
+    <linearGradient id="shade" x2="0" y2="1"><stop stop-color="#172b5a" stop-opacity="0"/><stop offset=".58" stop-color="#172b5a" stop-opacity=".82"/><stop offset="1" stop-color="#122344"/></linearGradient>
+    <linearGradient id="beam" x2="1" y2="1"><stop stop-color="white" stop-opacity=".9"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+    <filter id="shadow" x="-40%" y="-30%" width="180%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#233e87" flood-opacity=".18"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
+    <clipPath id="screen"><rect x="806" y="62" width="518" height="714" rx="38"/></clipPath>
+    <g id="camera-mark">
+      <rect width="512" height="512" rx="100" fill="#315eff"/>
+      <path d="M112 158h61l22-36h122l22 36h61c22 0 40 18 40 40v154c0 22-18 40-40 40H112c-22 0-40-18-40-40V198c0-22 18-40 40-40Z" fill="#fff"/>
+      <circle cx="256" cy="273" r="88" fill="#315eff"/>
+      <path d="M287 235a49 49 0 1 0 0 76" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+      <circle cx="380" cy="208" r="12" fill="#315eff"/>
+    </g>
+    <g id="tick" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m-6 0 4 4 8-9"/></g>
+  </defs>
+  <rect width="1440" height="840" rx="30" fill="url(#paper)"/>
+  <circle cx="1120" cy="400" r="412" fill="none" stroke="#d7e2ff" stroke-width="1.5"/>
+  <circle cx="1120" cy="400" r="358" fill="none" stroke="#d7e2ff" stroke-width="1.5"/>
+  <path d="M756 0v840" stroke="#d7e2ff" stroke-width="1"/>
+  <g font-family="Helvetica, Arial, sans-serif">
+    <use href="#camera-mark" transform="translate(77 91) scale(.12)"/>
+    <text x="143" y="137" font-size="53" font-weight="700" letter-spacing="-2" fill="#172b5a">ClefCam.</text>
+    <rect x="80" y="215" width="386" height="37" rx="18.5" fill="#e0e8ff"/>
+    <circle cx="101" cy="233.5" r="4" fill="#315eff"/>
+    <text x="115" y="239" font-size="15" font-weight="700" letter-spacing=".5" fill="#3153b5">POWERED BY CLOUDFLARE CLEF FLASH</text>
+    <text x="78" y="344" font-size="72" font-weight="700" letter-spacing="-3" fill="#172b5a">Your scene.</text>
+    <text x="78" y="425" font-size="72" font-weight="700" letter-spacing="-3" fill="#315eff">Your conditions.</text>
+    <text x="82" y="492" font-size="27" fill="#52658a">A camera that follows your rules.</text>
+    <text x="82" y="534" font-size="27" fill="#52658a">Preset and custom rules, together.</text>
+    <g transform="translate(82 626)">
+      <rect width="171" height="48" rx="24" fill="#fff" stroke="#ccd8f3"/>
+      <circle cx="27" cy="24" r="9" fill="none" stroke="#315eff" stroke-width="2"/>
+      <circle cx="27" cy="24" r="3" fill="#315eff"/>
+      <text x="46" y="30" font-size="18" fill="#172b5a">Live camera</text>
+      <rect x="183" width="161" height="48" rx="24" fill="#fff" stroke="#ccd8f3"/>
+      <path d="m204 20 7-4 7 4-7 4zm0 8 7 4 7-4" fill="none" stroke="#315eff" stroke-width="2" stroke-linejoin="round"/>
+      <text x="233" y="30" font-size="18" fill="#172b5a">All rules</text>
+      <rect x="356" width="187" height="48" rx="24" fill="#315eff"/>
+      <path d="m382 13 3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="none" stroke="#fff" stroke-width="1.6"/>
+      <text x="403" y="30" font-size="18" fill="white">Optional Auto</text>
+    </g>
+    <text x="83" y="752" font-size="15" letter-spacing="1.1" fill="#637599">SAMPLED FRAMES. BOUNDED DECISIONS.</text>
+    <rect x="794" y="50" width="542" height="738" rx="50" fill="#fff" filter="url(#shadow)"/>
+    <g clip-path="url(#screen)">
+      <rect x="806" y="62" width="518" height="714" fill="url(#wall)"/>
+      <path d="M806 82h318L806 436z" fill="url(#beam)"/>
+      <path d="M1135 62h32L930 459h-32z" fill="#d3d2c9" opacity=".24"/>
+      <rect x="806" y="374" width="518" height="402" fill="url(#wood)"/>
+      <path d="M806 426q120-21 255 8t263 2M806 455q80-13 227 11t291 1M806 498q139-19 330 12t188 0M806 569q189-24 518 3M806 624q144-21 314 8t204 0" fill="none" stroke="#8e603e" stroke-width="2" opacity=".2"/>
+      <ellipse cx="1070" cy="447" rx="160" ry="28" fill="#62452d" opacity=".27" filter="url(#soft)"/>
+      <!-- A closed book and a ceramic mug: deliberately illustrated, not a photo. -->
+      <path d="m890 432 204-20 126 40-204 27z" fill="#172b5a"/>
+      <path d="m897 413 196-17 117 38v19l-194 21-119-40z" fill="#f7f2df"/>
+      <path d="m1016 452 192-20m-192 27 192-20" fill="none" stroke="#c6bea8" stroke-width="1.5"/>
+      <path d="m883 409 210-23 128 43-206 26z" fill="#6b8aa0"/>
+      <path d="m885 410 128 43v24l-128-43z" fill="#3e617a"/>
+      <path d="M1148 280c102-15 105 119 6 116" fill="none" stroke="#254bad" stroke-width="25"/>
+      <path d="M1155 281c77-6 83 97 7 101" fill="none" stroke="#648cff" stroke-width="8"/>
+      <path d="M982 271h181l-11 127c-5 57-151 57-159 0z" fill="url(#mug)"/>
+      <ellipse cx="1072" cy="271" rx="91" ry="24" fill="#7c9bff"/>
+      <ellipse cx="1072" cy="271" rx="79" ry="17" fill="#203874"/>
+      <ellipse cx="1072" cy="275" rx="72" ry="11" fill="#554035"/>
+      <path d="m1003 292 7 94q2 27 25 33" fill="none" stroke="#a2baff" stroke-width="8" stroke-linecap="round" opacity=".45"/>
+      <path d="M1040 225c-18-20 20-28 2-51m45 51c-18-20 20-28 2-51" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      <rect x="806" y="421" width="518" height="355" fill="url(#shade)"/>
+      <use href="#camera-mark" transform="translate(830 86) scale(.07)"/>
+      <text x="874" y="116" font-size="29" font-weight="700" letter-spacing="-1" fill="#172b5a">ClefCam.</text>
+      <rect x="1249" y="82" width="49" height="44" rx="22" fill="#fff" opacity=".7"/>
+      <g transform="translate(1262 94)" fill="none" stroke="#172b5a" stroke-width="2" stroke-linejoin="round"><path d="M1 4h6l2-4h8l2 4h5v17H1z"/><path d="m8 10 4-3 4 3m0 5-4 3-4-3"/></g>
+      <rect x="834" y="497" width="82" height="30" rx="15" fill="#315eff"/>
+      <circle cx="851" cy="512" r="4" fill="#bff5d7"/>
+      <text x="864" y="518" font-size="16" fill="white">Live</text>
+      <text x="932" y="518" font-size="18" fill="#f8faff">2 of 2 matched</text>
+      <g>
+        <rect x="834" y="544" width="218" height="49" rx="15" fill="#e9fff2"/>
+        <g transform="translate(858 569)" color="#24764c"><use href="#tick"/></g>
+        <text x="876" y="575" font-size="19" font-weight="500" fill="#1b5a3e">Mug visible</text>
+        <rect x="1062" y="544" width="234" height="49" rx="15" fill="#e9fff2"/>
+        <g transform="translate(1086 569)" color="#24764c"><use href="#tick"/></g>
+        <text x="1104" y="575" font-size="19" font-weight="500" fill="#1b5a3e">Wooden surface</text>
+      </g>
+      <circle cx="1065" cy="664" r="40" fill="none" stroke="#c3d3ff" stroke-width="3"/>
+      <circle cx="1065" cy="664" r="33" fill="#f8faff"/>
+      <path d="m920 640 4 11 11 4-11 4-4 11-4-11-11-4 11-4z" fill="none" stroke="#e0e8ff" stroke-width="2"/>
+      <text x="901" y="696" font-size="15" fill="#e0e8ff">Auto</text>
+      <g fill="none" stroke="#e0e8ff" stroke-width="2"><path d="M1197 647h29m-29 12h29m-29 12h29"/><circle cx="1205" cy="647" r="3" fill="#172b5a"/><circle cx="1219" cy="659" r="3" fill="#172b5a"/><circle cx="1209" cy="671" r="3" fill="#172b5a"/></g>
+      <text x="1190" y="696" font-size="15" fill="#e0e8ff">Details</text>
+      <text x="1065" y="744" text-anchor="middle" font-size="16" fill="#bdcdeb">All together. That's your moment.</text>
+    </g>
+    <text x="1065" y="815" text-anchor="middle" font-size="13" letter-spacing="1" fill="#657799">ILLUSTRATIVE SCENE · NOT A LIVE RESULT</text>
+  </g>
+</svg>

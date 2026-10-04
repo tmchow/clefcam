@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.cloudflare/
+.wrangler/
+.env*
+.dev.vars*
+!.env.example
+!.dev.vars.example
+playwright-report/
+test-results/
+private/
+*.local.*
+.DS_Store

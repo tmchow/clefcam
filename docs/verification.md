@@ -1,0 +1,47 @@
+# Verification
+
+## Current coverage
+
+The Flash-only app was checked with Node 24.17.0, npm 11.13.0, Google Chrome and Playwright's matching WebKit runtime.
+
+| Check                                          | Result          |
+| ---------------------------------------------- | --------------- |
+| ESLint and TypeScript                          | Passed          |
+| Vitest                                         | 41 tests passed |
+| Chrome browser suite                           | 35 tests passed |
+| Focused Chrome/WebKit touch and keyboard suite | 14 tests passed |
+| Focused Chrome/WebKit camera-pixel suite       | 2 tests passed  |
+| Production Worker/client build                 | Passed          |
+
+Browser tests use synthetic camera streams and intercepted inference responses. They do not call hosted inference. Test screenshots and traces are generated locally under ignored directories and are not distributed with the source.
+
+## What the tests establish
+
+- **Rules and touch:** add three custom rules without closing the picker, immediately reveal each row, edit/save, remove, switch categories, retain presets, enforce the six-rule limit, and explicitly resolve gesture conflicts. Custom rows remain available across categories.
+- **Keyboard:** actual touch focus, viewport height and offset changes, compact portrait/landscape editors, and draft retention across Back, Close and reopening. Edits apply only through Save.
+- **Camera pixels:** independently decoded inference/capture JPEGs and rendered preview pixels agree on centered crop and front mirroring across camera switches, sensor rotation, viewport resize and resume.
+- **Evaluation:** no network calls with zero enabled rules; visibility and user-intent guards on resume; delayed camera permission; stale and failed replies; safe diagnostic codes; incomplete replies; and one-shot Auto saving the evaluated frame even when the live scene changes before its response.
+- **Security:** signed JWT acceptance/rejection, exact host/email/issuer/audience, expiration and maximum token lifetime, anonymous asset/API denial, origin validation, inference-disabled mode, streamed body caps, image validation and rule payload limits.
+- **Usage:** concurrent reservations fail closed, failures retain reservations, historical accounting remains valid, and missing/malformed usage is represented as unknown. Cost and latency calculations exclude inappropriate replies without erasing incurred usage.
+
+The custom-row regression failed before its repair in both Chrome and WebKit. Error/stale-response regressions and temporary-copy mutations of authorization, payload and budget guards also failed for the intended reasons before the corresponding repair or restoration.
+
+## Visual and asset checks
+
+Reviewed mobile portrait/landscape focused editors, the open custom picker, front/rear camera layouts and captured-frame renders. Inspected the camera/C icon at full size and 60px, and the README illustration at mobile width on light and dark backgrounds.
+
+Apple touch (180px), manifest (192/512px) and favicon (32px) PNGs have the documented dimensions and opaque backgrounds. The SVG, PNG and manifest files are included in production output; local serving returns their expected MIME types. No service worker or offline mode is installed.
+
+## Reproduce
+
+Follow the [README check commands](../README.md#check-your-changes). Run browser suites sequentially so one test process cannot stop a shared server underneath another. The suites start Vite themselves. A clean checkout can install and build without private deployment configuration; missing authorization settings fail closed.
+
+A Docker-daemon probe warning may appear during the Cloudflare build. This Worker has no containers; confirm the command exits successfully and emits both Worker and client output.
+
+## What still needs hardware or deployment verification
+
+Synthetic streams and desktop WebKit do not establish real iPhone camera permission, lens selection, software-keyboard/safe-area behavior, image downloading, model reliability under real lighting, or home-screen icon caching and standalone sign-in.
+
+After deploying on your own account, verify anonymous HTML, exact new JavaScript, API, icons and manifest are blocked by Access. Then sign in on a phone and test the real camera and inference route. Keep icons protected; do not add an anonymous bypass to make home-screen fetching work.
+
+A generic check failure does not identify its cause. Use **Details → Show diagnostics** for safe status/error codes and camera geometry, then reproduce with the actual device. Passing mocks do not establish a production inference fix. No private deployment identifiers, owner authentication details, camera photos or historical usage receipts are included in this public verification summary.
