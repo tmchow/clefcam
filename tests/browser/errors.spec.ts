@@ -45,7 +45,7 @@ for (const scenario of [
     await page.getByRole("button", { name: "Show diagnostics" }).click();
     await expect(page.locator(".diagnostics")).toContainText(scenario.code);
     await expect(page.locator(".diagnostics")).toContainText(
-      "flash-only-2026-10-04",
+      "matching-feedback-2026-10-04",
     );
     await expect(page.locator("body")).not.toContainText(
       "private-login-response",

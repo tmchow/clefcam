@@ -31,7 +31,9 @@ test("live states, one-shot auto and explicit re-arm", async ({ page }) => {
     });
   });
   await start(page);
-  await expect(page.getByText("1 of 1 matched")).toBeVisible({ timeout: 8000 });
+  await expect(page.getByText("Rule matched")).toBeVisible({
+    timeout: 8000,
+  });
   await expect(
     page.getByRole("button", { name: "Cost and speed details" }),
   ).toContainText("Test data");
@@ -112,7 +114,12 @@ test("editing a rule rejects its in-flight answer and disarms capture", async ({
   await expect(
     page.getByRole("button", { name: "A striped mug beside a book Checking" }),
   ).toBeVisible();
-  await expect(page.getByText("0 of 1 matched")).toBeVisible();
+  await expect(page.locator(".result-summary")).not.toContainText(
+    "0 of 1 matched",
+  );
+  await expect(page.locator(".result-summary")).toContainText(
+    /Checking the scene|Waiting for a fresh result/,
+  );
   await expect(
     page.getByRole("dialog", { name: "Captured photo" }),
   ).toHaveCount(0);

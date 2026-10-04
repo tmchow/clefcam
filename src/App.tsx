@@ -19,6 +19,8 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
+  Circle,
+  Minus,
   Coffee,
   SwitchCamera,
   Hand,
@@ -75,6 +77,12 @@ const words: Record<Match, string> = {
   checking: "Checking",
   uncertain: "Uncertain",
 };
+type Observation = {
+  at: number;
+  states: Record<string, Match>;
+  complete: boolean;
+  changed: string[];
+};
 type Frame = {
   original: string;
   image: string;
@@ -96,7 +104,7 @@ export default function App() {
     version = useRef(0),
     busy = useRef(false),
     gate = useRef(new CaptureGate()),
-    lastGood = useRef(0),
+    observationRef = useRef<Observation | null>(null),
     armRef = useRef(false),
     runningRef = useRef(false),
     checkingIntent = useRef(false),
@@ -106,7 +114,9 @@ export default function App() {
     count = useRef(0),
     session = useRef(crypto.randomUUID());
   const [rules, setRules] = useState<Rule[]>([]),
-    [states, setStates] = useState<Record<string, Match>>({}),
+    [observation, setObservation] = useState<Observation | null>(null),
+    [checking, setChecking] = useState(false),
+    [checkFailed, setCheckFailed] = useState(false),
     [ready, setReady] = useState(false),
     [starting, setStarting] = useState(false),
     [cameraNotice, setCameraNotice] = useState(""),
@@ -116,7 +126,10 @@ export default function App() {
     [message, setMessage] = useState("Your scene. Your conditions."),
     [cameraError, setCameraError] = useState(""),
     [armed, setArmed] = useState(false),
-    [capture, setCapture] = useState<string | null>(null),
+    [capture, setCapture] = useState<{
+      image: string;
+      automatic: boolean;
+    } | null>(null),
     [metrics, setMetrics] = useState(newMetrics),
     [checks, setChecks] = useState(0),
     [sheet, setSheet] = useState<"add" | "edit" | "info" | "metrics" | null>(
@@ -139,13 +152,68 @@ export default function App() {
     revealCustom = useRef<string | null>(null),
     editDrafts = useRef(new Map<string, string>());
   const enabled = rules.filter((r) => r.enabled),
-    matched = enabled.filter((r) => states[r.id] === "matched").length;
+    states = observation?.states ?? {},
+    matched = enabled.filter((r) => states[r.id] === "matched").length,
+    allMatched =
+      running &&
+      !!observation?.complete &&
+      enabled.length > 0 &&
+      matched === enabled.length;
+  function resultTitle() {
+    if (!enabled.length) return "Choose your rules";
+    if (checkFailed) return "Couldn’t check this sample";
+    if (!running) return "Checking paused";
+    if (!observation)
+      return checking ? "Checking the scene…" : "Waiting for a fresh result";
+    if (!observation.complete) return "Incomplete check";
+    if (allMatched) {
+      if (armed) return "First match — checking again";
+      return enabled.length === 1
+        ? "Rule matched"
+        : `All ${enabled.length} rules matched`;
+    }
+    return `${matched} of ${enabled.length} matched`;
+  }
+  function resultContext() {
+    if (!enabled.length) return "The camera stays live";
+    if (!running) return "Tap Live to resume";
+    if (!observation)
+      return checking
+        ? "A new sample is being checked"
+        : "No fresh observation";
+    const label = observation.complete ? "Last check" : "Incomplete check";
+    return `${label}${checking ? " · checking a new sample…" : " · sampled frame"}`;
+  }
+  function ruleStateLabel(rule: Rule) {
+    if (!rule.enabled) return "Disabled";
+    if (!running) return "Paused";
+    if (checkFailed) return "Check failed";
+    if (!observation) return "Checking";
+    return words[states[rule.id] || "uncertain"];
+  }
+  function clearObservation() {
+    observationRef.current = null;
+    setObservation(null);
+  }
+  useEffect(() => {
+    if (!observation) return;
+    const timeout = setTimeout(
+      () => {
+        clearObservation();
+        gate.current.reset();
+        setMessage("Waiting for a fresh result.");
+      },
+      Math.max(0, observation.at + MAX_AGE - Date.now()),
+    );
+    return () => clearTimeout(timeout);
+  }, [observation]);
   function invalidate() {
     version.current++;
     gate.current.reset();
-    lastGood.current = 0;
+    clearObservation();
+    setChecking(false);
+    setCheckFailed(false);
     lastSignature.current = null;
-    setStates({});
     armRef.current = false;
     setArmed(false);
   }
@@ -354,12 +422,6 @@ export default function App() {
   }
   useEffect(() => {
     const timer = setInterval(async () => {
-      if (lastGood.current && Date.now() - lastGood.current > MAX_AGE) {
-        lastGood.current = 0;
-        gate.current.reset();
-        setStates({});
-        setMessage("Refreshing the scene…");
-      }
       if (!runningRef.current || busy.current || document.hidden) return;
       const active = rulesRef.current.filter((r) => r.enabled);
       if (!active.length) return;
@@ -386,6 +448,7 @@ export default function App() {
       )
         return;
       busy.current = true;
+      setChecking(true);
       const requestVersion = version.current;
       lastSent.current = Date.now();
       lastSignature.current = frame.signature;
@@ -510,22 +573,45 @@ export default function App() {
               : "uncertain",
           ]),
         );
-        setStates(clean);
-        lastGood.current = frame.at;
+        const previousObservation = observationRef.current;
+        const changed = active.filter(
+          (r) => previousObservation?.states[r.id] !== clean[r.id],
+        );
+        const nextObservation = {
+          at: frame.at,
+          states: clean,
+          complete,
+          changed: changed.map((r) => r.id),
+        };
+        observationRef.current = nextObservation;
+        setObservation(nextObservation);
+        setCheckFailed(false);
 
         const stable = gate.current.accept(
           complete ? Object.values(clean) : [],
           Date.now(),
         );
-        setMessage(
-          Object.values(clean).every((s) => s === "matched")
-            ? "All together. That’s your moment."
-            : "Move your scene into place.",
-        );
+        const wholeSceneMatched =
+          complete && Object.values(clean).every((s) => s === "matched");
+        let feedback = "";
+        if (!complete) feedback = "This check was incomplete. Checking again…";
+        else if (wholeSceneMatched)
+          feedback = armRef.current
+            ? "First match — checking again."
+            : "All rules matched in the last check.";
+        else if (changed.length) {
+          feedback = changed
+            .slice(0, 2)
+            .map((r) => `${r.label}: ${words[clean[r.id]]}`)
+            .join(" · ");
+          if (changed.length > 2)
+            feedback += ` · ${changed.length - 2} more changed`;
+        }
+        setMessage(feedback);
         if (armRef.current && stable) {
           armRef.current = false;
           setArmed(false);
-          setCapture(frame.original);
+          setCapture({ image: frame.original, automatic: true });
           pause();
           setMessage("Captured the exact matched frame.");
         }
@@ -538,8 +624,8 @@ export default function App() {
                 : "network_or_response_error",
           };
           gate.current.reset();
-          lastGood.current = 0;
-          setStates(Object.fromEntries(active.map((r) => [r.id, "uncertain"])));
+          clearObservation();
+          setCheckFailed(true);
           setMessage(
             error instanceof Error && error.name === "AbortError"
               ? "This check took too long. Retrying…"
@@ -559,6 +645,7 @@ export default function App() {
         setChecks(count.current);
         clearTimeout(timeout);
         busy.current = false;
+        setChecking(false);
       }
     }, 1500);
     const visibility = () => {
@@ -760,7 +847,7 @@ export default function App() {
   function manual() {
     const f = takeFrame();
     if (f) {
-      setCapture(f.original);
+      setCapture({ image: f.original, automatic: false });
       pause();
       setMessage("Manual capture. Saved only on this device.");
     }
@@ -780,12 +867,12 @@ export default function App() {
     gate.current.reset();
     armRef.current = true;
     setArmed(true);
-    setMessage("Auto armed. Hold all rules for two fresh checks.");
+    setMessage("Auto armed. Waiting for two fresh matching checks.");
   }
   return (
     <main className="app">
       <section
-        className={`viewfinder ${ready ? "camera-active" : "camera-off"} ${facing === "user" ? "front" : ""}`}
+        className={`viewfinder ${allMatched ? "all-matched" : ""} ${ready ? "camera-active" : "camera-off"} ${facing === "user" ? "front" : ""}`}
         aria-label="Camera viewfinder"
       >
         <div className="camera-stage" ref={stage}>
@@ -914,17 +1001,21 @@ export default function App() {
                 {running ? <span className="live-dot" /> : <Play size={11} />}{" "}
                 {running ? "Live" : "Paused"}
               </button>
-              <span>
-                {armed
-                  ? "Auto is waiting for your moment"
-                  : !enabled.length
-                    ? "Add a rule to start checking"
-                    : !running
-                      ? "Live checking paused"
-                      : enabled.length
-                        ? `${matched} of ${enabled.length} matched`
-                        : "Start with one simple rule"}
-              </span>
+              <div className="result-summary">
+                <strong>{resultTitle()}</strong>
+                <span>{resultContext()}</span>
+              </div>
+              <button
+                className="add-rule"
+                ref={addButton}
+                onClick={() => {
+                  setCategory("All");
+                  openPicker();
+                }}
+              >
+                <Plus size={16} />
+                <span>Add rule</span>
+              </button>
               {ready && (
                 <button
                   className="quiet small"
@@ -945,37 +1036,29 @@ export default function App() {
                   className={`chip ${r.enabled ? states[r.id] || "checking" : "disabled"}`}
                   onClick={() => openEdit(r)}
                 >
-                  <Icon name={r.icon} size={17} />
-                  <span>{r.label}</span>
-                  <span className="chip-state">
-                    {!r.enabled ? (
-                      "Off"
-                    ) : states[r.id] === "matched" ? (
-                      <Check size={16} />
-                    ) : (
-                      <span className="state-dot" />
-                    )}
+                  <span className="rule-name">
+                    <Icon name={r.icon} size={16} />
+                    <span>{r.label}</span>
                   </span>
-                  <span className="state-label">
-                    {r.enabled
-                      ? running
-                        ? words[states[r.id] || "checking"]
-                        : "Paused"
-                      : "Disabled"}
+                  <span
+                    className={`rule-outcome ${observation?.changed.includes(r.id) ? "just-changed" : ""}`}
+                    key={`${r.id}-${states[r.id] ?? "waiting"}`}
+                  >
+                    {!r.enabled ? (
+                      <Minus size={15} />
+                    ) : states[r.id] === "matched" ? (
+                      <Check size={15} />
+                    ) : states[r.id] === "uncertain" ? (
+                      <CircleHelp size={15} />
+                    ) : states[r.id] === "unmet" ? (
+                      <Minus size={15} />
+                    ) : (
+                      <Circle size={15} />
+                    )}
+                    <span className="state-label">{ruleStateLabel(r)}</span>
                   </span>
                 </button>
               ))}
-              <button
-                className="add-rule"
-                ref={addButton}
-                onClick={() => {
-                  setCategory("All");
-                  openPicker();
-                }}
-              >
-                <Plus size={18} />
-                Add rule
-              </button>
             </div>
             {metrics.completed > 0 && (
               <button
@@ -1513,7 +1596,7 @@ export default function App() {
                   setDiagnostics(
                     JSON.stringify(
                       {
-                        build: "flash-only-2026-10-04",
+                        build: "matching-feedback-2026-10-04",
                         renderer: "canvas",
                         facing: settings?.facingMode || facing,
                         source: [v?.videoWidth, v?.videoHeight],
@@ -1535,7 +1618,7 @@ export default function App() {
                 Show diagnostics
               </button>
               {diagnostics && <pre className="diagnostics">{diagnostics}</pre>}
-              <p className="build-label">Build: flash-only-2026-10-04</p>
+              <p className="build-label">Build: matching-feedback-2026-10-04</p>
             </div>
           )}
         </div>
@@ -1547,13 +1630,28 @@ export default function App() {
           aria-modal="true"
           aria-label="Captured photo"
         >
-          <img src={capture} alt="Your captured frame" />
+          <img
+            src={capture.image}
+            alt={
+              capture.automatic
+                ? "The evaluated matching frame"
+                : "Your manually captured frame"
+            }
+          />
           <div>
-            <h2>Your moment, kept.</h2>
-            <p>Only on this device. Ready when you are.</p>
+            <h2>
+              {capture.automatic ? "Captured matching frame" : "Photo captured"}
+            </h2>
+            <p>
+              {capture.automatic
+                ? "Two fresh checks matched. Auto is now off."
+                : "Manual photo. Rules were not required."}
+              <br />
+              Only on this device until you download.
+            </p>
             <a
               className="primary"
-              href={capture}
+              href={capture.image}
               download={`clefcam-${Date.now()}.jpg`}
             >
               <Download size={19} />

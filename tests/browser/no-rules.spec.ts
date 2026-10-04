@@ -27,7 +27,7 @@ test("no enabled rules means paused evaluation and zero requests; first rule sta
   await page.waitForTimeout(3300);
   expect(calls).toBe(0);
   await expect(
-    page.getByText("Add a rule to start checking", { exact: true }),
+    page.getByText("Choose your rules", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   await page.getByRole("button", { name: "Mug visible Objects" }).click();
@@ -43,7 +43,7 @@ test("no enabled rules means paused evaluation and zero requests; first rule sta
   ).toBeDisabled();
   await page.waitForTimeout(3600);
   expect(calls).toBe(stopped);
-  await page.getByRole("button", { name: "Mug visible Off Disabled" }).click();
+  await page.getByRole("button", { name: "Mug visible Disabled" }).click();
   await page.getByRole("button", { name: "Enable rule" }).click();
   await expect.poll(() => calls).toBeGreaterThan(stopped);
   await page

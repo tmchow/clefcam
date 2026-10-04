@@ -56,7 +56,7 @@ test("picker supports multiple rules, custom conditions and repeated editing", a
   await page.getByRole("button", { name: "Disable rule" }).click();
   await expect(
     page.getByRole("button", {
-      name: "A red mug on a wooden table Off Disabled",
+      name: "A red mug on a wooden table Disabled",
     }),
   ).toBeVisible();
   await page
