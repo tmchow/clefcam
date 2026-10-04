@@ -8,6 +8,23 @@ ClefCam is a mobile web camera that checks a stack of visual rules using [Cloudf
 
 Clef makes bounded decisions about sampled frames; it does not generate descriptions or process a continuous video stream. The app is a small React/TypeScript frontend and a Cloudflare Worker with an AI binding and a Durable Object for usage limits. It deploys behind Cloudflare Access on your own account.
 
+## A small camera app, a bigger pattern
+
+ClefCam is a working starting point for inexpensive, repeated decisions. The camera gives it something to observe; Clef answers a few bounded questions; ordinary application code decides what happens next.
+
+**Observe → check conditions → remember progress → act.**
+
+In this app, that means checking a scene, remembering whether consecutive checks matched, and capturing a photo once. The same loop could advance a sequence, unlock a clue, update a checklist, or decide when another tool is worth calling. Clef supplies the judgments. Your application supplies memory, timing and actions.
+
+A few directions to build from here—ideas, not features shipped or validated in ClefCam:
+
+- **A hands-free shot list or process journal.** Check for the next scene in a sequence, capture it, then advance the checklist. The app remembers which steps are done, rather than asking the model to reconstruct the whole session.
+- **A scavenger hunt or escape room made from ordinary objects.** Recognizing a mug, an open book or a particular combination could unlock the next clue. Game state and puzzle logic live in code.
+- **A sketch checklist before image generation.** Check whether the requested elements are present while someone draws. Once the checklist is satisfied and the person confirms, make one more expensive generation call instead of generating on every revision.
+- **A live semantic writing checklist.** Apply the pattern to text: does a draft state the decision, name an owner and include a next step? Update a few indicators as the text changes, while leaving the writing to its author.
+
+Other small uses include waiting for a recognizable state in an agent's screenshot or notifying someone when a scene changes meaningfully. Each needs its own validation, uncertainty handling and sensible polling interval. The useful ingredient is a decision you can compose into software; the photo is just this example's action.
+
 ## Use it
 
 1. **Open camera** and allow camera access, or **Choose rules first** to prepare a scene. Rear camera is the default; the switch button selects the front camera.
@@ -122,7 +139,30 @@ Camera access does not request audio. Sampled JPEGs leave the device for Cloudfl
 
 A Durable Object reserves usage **before** inference: 120 units per page session, 300 per UTC day and 2,000 over the deployment's lifetime. Each Flash check reserves one unit; failed calls consume their reservations. A shared in-flight lock and minimum request spacing cover concurrent tabs. Reloading does not reset daily or lifetime totals. Historical weighted reservations are preserved.
 
-At the documented Clef Flash price of **$0.09 per million input tokens**, reserving its full 65,536-token context per unit gives an approximately **$11.80 lifetime inference estimate**. This is a conservative token-price estimate, not a billing cap: prices can change, and Worker/Durable Object charges are separate. Review [model pricing](https://developers.cloudflare.com/workers-ai/models/clef-flash/) and [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) before enabling inference. Limits are intentionally hardcoded; changing them changes the spending guardrail.
+### What repeated checks cost
+
+ClefCam runs `@cf/cloudflare/clef-flash`. As checked on October 4, 2026, Cloudflare lists **$0.09 per million input tokens for Flash** and **$0.24 for full Clef**. The examples below use Flash only. See [Flash pricing](https://developers.cloudflare.com/workers-ai/models/clef-flash/), [full Clef pricing](https://developers.cloudflare.com/workers-ai/models/clef/) and [Workers AI billing](https://developers.cloudflare.com/workers-ai/platform/pricing/).
+
+Our saved development results include **62 successful hosted Flash calls on synthetic image fixtures**, with varied experimental question sets: **71,138 input tokens total**, **333–1,758 per call**, and about **1,147 per call on average**. Reported output tokens were zero. At the listed rate, that batch represents **$0.00640 of estimated inference cost**—about 0.64 cents. These were actual hosted calls, not mocked browser responses, but they were **not real phone sessions or a benchmark of the current production prompt**. Full-Clef comparison calls are excluded.
+
+For a practical illustration, round that fixture average up to **1,200 input tokens per check**. A check is one request containing the enabled rule stack and its scene-scope question, not a separate request per rule. The current prompt, image and number of rules can change token usage; measure your own workload before budgeting around this assumption.
+
+```text
+Estimated inference cost = checks × input tokens per check ÷ 1,000,000 × $0.09
+```
+
+| Illustrative workload                                                          | Assumed checks | Flash inference estimate |
+| ------------------------------------------------------------------------------ | -------------: | -----------------------: |
+| One check at 1,200 input tokens                                                |              1 |                $0.000108 |
+| Two minutes of active checking, assuming one completed check every 1.5 seconds |             80 |   $0.00864 (about 0.86¢) |
+| One page session reaching the app's 120-check limit                            |            120 |   $0.01296 (about 1.30¢) |
+| 1,000 of those two-minute sessions                                             |         80,000 |                    $8.64 |
+
+These are calculations, not measured sessions. The scheduler wakes every 1.5 seconds, allows only one in-flight request and slows checking for unchanged scenes. Network/model time, backgrounding, pausing and Auto capturing once can all reduce the number of completed checks. Retries may incur additional usage. No rules means no checks.
+
+The 1,000-session example illustrates the economics of a larger application; **this demo cannot run that workload under its current limits**. It has a 120-unit cap per page session, plus 300-unit daily and 2,000-unit lifetime caps whose totals are shared across users and tabs. Supporting 80,000 checks would require a separately budgeted change to those limits and consideration of concurrency. Nothing in this example raises or resets them.
+
+For the existing lifetime guardrail, reserving Flash's entire 65,536-token context for each of 2,000 units gives a conservative **$11.80 inference estimate**. That is deliberately much higher than the fixture-based examples. Neither estimate is a billing hard cap: prices and workloads can change. These figures exclude Worker execution, Durable Object requests/storage, network or other service charges, plan minimums and any downstream image-generation call; account billing and allowances can also affect the invoice.
 
 The **Cost & speed** sheet measures browser round trip through response reading. Typical speed is the median of fresh, complete, successful live checks in this page session. Cost uses reported input tokens; missing/invalid usage is unavailable, never silently free. Known usage from stale or incomplete replies still counts because the request ran. Mocked replies display **Test data**. These are estimates, not invoice totals. Authenticated `/api/usage` exposes reservations, reported tokens and unknown-usage counts separately.
 
