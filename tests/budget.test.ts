@@ -96,23 +96,37 @@ it("preserves historical weighted reservations and cost while adding Flash usage
   ).toBeCloseTo(0.00249, 12);
   expect(data.get(`session:${session}`)).toBe(13);
 });
-it.each(["lifetime", "daily", "session"])(
-  "does not refund historical reservations at the %s cap",
+it.each(["lifetime", "daily"])(
+  "admits the final %s reservation then rejects without resetting history",
   async (limit) => {
-    vi.spyOn(Date, "now").mockReturnValue(100000);
+    let now = 100000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
     const { budget, run, data } = fixture({
       calls: 3,
-      reservedUnits: limit === "lifetime" ? 2000 : 3,
+      reservedUnits: limit === "lifetime" ? 1999 : 999,
       daily: 3,
-      dailyUnits: limit === "daily" ? 300 : 3,
-      day: new Date(100000).toISOString().slice(0, 10),
+      dailyUnits: limit === "daily" ? 999 : 3,
+      day: "1970-01-01",
       last: 0,
       inputTokens: 0,
       unknownUsage: 0,
     });
-    if (limit === "session") data.set(`session:${session}`, 120);
-    expect((await budget.fetch(request([presets[3]]))).status).toBe(429);
-    expect(run).not.toHaveBeenCalled();
+    expect((await budget.fetch(request([presets[3]]))).status).toBe(200);
+    const saved = structuredClone(data.get("ledger"));
+    now += 2000;
+    const response = await budget.fetch(request([presets[3]]));
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ code: `${limit}_limit` });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(data.get("ledger")).toEqual(saved);
+    if (limit === "lifetime") {
+      now += 86400000;
+      expect(
+        await (await budget.fetch(request([presets[3]]))).json(),
+      ).toMatchObject({ code: "lifetime_limit" });
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(data.get("ledger")).toMatchObject({ reservedUnits: 2000 });
+    }
   },
 );
 it("migrates original Flash counters without resetting them", async () => {
@@ -152,7 +166,7 @@ it("keeps the retired model's historical rate when reconstructing a missing tota
     (data.get("ledger") as { estimatedUsd: number }).estimatedUsd,
   ).toBeCloseTo(0.00042, 12);
 });
-it("reserves failed calls and enforces the session cap", async () => {
+it("reserves failed calls beyond the old session cap without refunding unknown usage", async () => {
   let now = 100000;
   vi.spyOn(Date, "now").mockImplementation(() => now);
   const { budget, run, data } = fixture();
@@ -165,8 +179,13 @@ it("reserves failed calls and enforces the session cap", async () => {
     unknownUsage: 1,
   });
   now += 2000;
-  expect((await budget.fetch(request([presets[3]]))).status).toBe(429);
-  expect(run).toHaveBeenCalledTimes(1);
+  expect((await budget.fetch(request([presets[3]]))).status).toBe(502);
+  expect(run).toHaveBeenCalledTimes(2);
+  expect(data.get(`session:${session}`)).toBe(121);
+  expect(data.get("ledger")).toMatchObject({
+    reservedUnits: 2,
+    unknownUsage: 2,
+  });
 });
 
 it("rejects concurrent checks before reserving or spending, and unlocks after failure", async () => {
@@ -181,7 +200,9 @@ it("rejects concurrent checks before reserving or spending, and unlocks after fa
   const first = budget.fetch(request([presets[3]]));
   await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1));
   now += 2000; // Past the interval guard: only in-flight admission should reject this check.
-  expect((await budget.fetch(request([presets[3]]))).status).toBe(429);
+  const concurrent = await budget.fetch(request([presets[3]]));
+  expect(concurrent.status).toBe(429);
+  expect(await concurrent.json()).toMatchObject({ code: "check_in_progress" });
   expect(run).toHaveBeenCalledTimes(1);
   expect(data.get("ledger")).toMatchObject({
     calls: 1,
@@ -235,4 +256,68 @@ it("denies a saturated original ledger without refunding its unweighted reservat
   });
   expect((await budget.fetch(request([presets[3]]))).status).toBe(429);
   expect(run).not.toHaveBeenCalled();
+});
+
+it("allows an existing session and day past the old caps without resetting any totals", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(100000);
+  const { budget, data } = fixture({
+    calls: 400,
+    reservedUnits: 600,
+    daily: 300,
+    dailyUnits: 500,
+    day: "1970-01-01",
+    last: 0,
+    inputTokens: 8000,
+    unknownUsage: 7,
+    estimatedUsd: 0.003,
+  });
+  data.set(`session:${session}`, 300);
+  expect((await budget.fetch(request([presets[3]]))).status).toBe(200);
+  expect(data.get("ledger")).toMatchObject({
+    calls: 401,
+    reservedUnits: 601,
+    daily: 301,
+    dailyUnits: 501,
+    inputTokens: 9000,
+    unknownUsage: 7,
+    estimatedUsd: 0.00309,
+  });
+  expect(data.get(`session:${session}`)).toBe(301);
+});
+it("daily exhaustion recovers at UTC midnight while lifetime reservations remain", async () => {
+  let now = Date.parse("2026-10-04T23:59:59Z");
+  vi.spyOn(Date, "now").mockImplementation(() => now);
+  const { budget, data, run } = fixture({
+    calls: 1500,
+    reservedUnits: 1500,
+    daily: 1000,
+    dailyUnits: 1000,
+    day: "2026-10-04",
+    last: 0,
+    inputTokens: 0,
+    unknownUsage: 1500,
+  });
+  expect(
+    await (await budget.fetch(request([presets[3]]))).json(),
+  ).toMatchObject({ code: "daily_limit" });
+  expect(run).not.toHaveBeenCalled();
+  now += 2000;
+  expect((await budget.fetch(request([presets[3]]))).status).toBe(200);
+  expect(data.get("ledger")).toMatchObject({
+    calls: 1501,
+    reservedUnits: 1501,
+    daily: 1,
+    dailyUnits: 1,
+    unknownUsage: 1500,
+  });
+});
+it("rate rejection is distinct and does not consume another reservation", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(100000);
+  const { budget, data, run } = fixture();
+  expect((await budget.fetch(request([presets[3]]))).status).toBe(200);
+  const response = await budget.fetch(request([presets[3]]));
+  expect(response.status).toBe(429);
+  expect(await response.json()).toMatchObject({ code: "check_rate_limit" });
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(data.get("ledger")).toMatchObject({ calls: 1, reservedUnits: 1 });
 });

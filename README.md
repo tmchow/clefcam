@@ -137,7 +137,7 @@ There is one in-flight request per page. Checks are spaced roughly 1.5 seconds a
 
 Camera access does not request audio. Sampled JPEGs leave the device for Cloudflare inference; captures and rule drafts stay in browser memory. The app does not persist raw frames or enable application request logging. Cloudflare's handling is covered by its [Workers AI data policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/).
 
-A Durable Object reserves usage **before** inference: 120 units per page session, 300 per UTC day and 2,000 over the deployment's lifetime. Each Flash check reserves one unit; failed calls consume their reservations. A shared in-flight lock and minimum request spacing cover concurrent tabs. Reloading does not reset daily or lifetime totals. Historical weighted reservations are preserved.
+A Durable Object reserves usage **before** inference: 1,000 units per UTC day and 2,000 over the deployment's lifetime. There is no per-page check cap. Each admitted Flash check reserves one unit, including failed inference attempts. Rate and concurrent-check denials do not consume another reservation. A shared in-flight lock and minimum request spacing cover concurrent tabs. Reloading does not reset daily or lifetime totals. Historical weighted reservations are preserved. Daily exhaustion recovers at 00:00 UTC; lifetime exhaustion requires an explicit owner budget review. Neither a reload nor a deployment restores lifetime allowance. Temporary concurrent-check and rate denials are reported separately and can be retried using play after waiting.
 
 ### What repeated checks cost
 
@@ -155,12 +155,12 @@ Estimated inference cost = checks × input tokens per check ÷ 1,000,000 × $0.0
 | ------------------------------------------------------------------------------ | -------------: | -----------------------: |
 | One check at 1,200 input tokens                                                |              1 |                $0.000108 |
 | Two minutes of active checking, assuming one completed check every 1.5 seconds |             80 |   $0.00864 (about 0.86¢) |
-| One page session reaching the app's 120-check limit                            |            120 |   $0.01296 (about 1.30¢) |
+| Three minutes of active checking at the same assumed cadence                   |            120 |   $0.01296 (about 1.30¢) |
 | 1,000 of those two-minute sessions                                             |         80,000 |                    $8.64 |
 
 These are calculations, not measured sessions. The scheduler wakes every 1.5 seconds, allows only one in-flight request and slows checking for unchanged scenes. Network/model time, backgrounding, pausing and Auto capturing once can all reduce the number of completed checks. Retries may incur additional usage. No rules means no checks.
 
-The 1,000-session example illustrates the economics of a larger application; **this demo cannot run that workload under its current limits**. It has a 120-unit cap per page session, plus 300-unit daily and 2,000-unit lifetime caps whose totals are shared across users and tabs. Supporting 80,000 checks would require a separately budgeted change to those limits and consideration of concurrency. Nothing in this example raises or resets them.
+The 1,000-session example illustrates the economics of a larger application; **this demo cannot run that workload under its current limits**. It has 1,000-unit daily and 2,000-unit lifetime caps whose totals are shared across users and tabs. Supporting 80,000 checks would require a separately budgeted change to those limits and consideration of concurrency. Nothing in this example raises or resets them.
 
 For the existing lifetime guardrail, reserving Flash's entire 65,536-token context for each of 2,000 units gives a conservative **$11.80 inference estimate**. That is deliberately much higher than the fixture-based examples. Neither estimate is a billing hard cap: prices and workloads can change. These figures exclude Worker execution, Durable Object requests/storage, network or other service charges, plan minimums and any downstream image-generation call; account billing and allowances can also affect the invoice.
 

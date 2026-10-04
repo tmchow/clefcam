@@ -1,3 +1,4 @@
+import { USAGE_LIMITS, usageLimitMessage } from "../src/limits";
 import { FLASH } from "../src/model";
 import { estimateUsd, validTokens } from "../src/metrics";
 import { DurableObject } from "cloudflare:workers";
@@ -156,14 +157,21 @@ export class Budget extends DurableObject<Env> {
       const ledger = await this.ctx.storage.get<Ledger>("ledger");
       return json(ledger || { calls: 0, inputTokens: 0, unknownUsage: 0 });
     }
-    if (this.busy) return json({ error: "A check is already running" }, 429);
+    if (this.busy)
+      return json(
+        {
+          error: usageLimitMessage("check_in_progress"),
+          code: "check_in_progress",
+        },
+        429,
+      );
     this.busy = true;
     try {
       const input = (await request.json()) as Evaluation;
       const model = FLASH.id;
       const now = Date.now(),
         day = new Date(now).toISOString().slice(0, 10);
-      const allowed = await this.ctx.storage.transaction(async (tx) => {
+      const rejection = await this.ctx.storage.transaction(async (tx) => {
         const ledger = (await tx.get<Ledger>("ledger")) || {
           calls: 0,
           day,
@@ -184,13 +192,9 @@ export class Budget extends DurableObject<Env> {
         // Reserve one unit per Flash check, including failures. Preserve all prior
         // weighted reservations; removing a model must never refund its usage.
         // 2,000 units × 65,536 tokens × $0.09/M < $11.80.
-        if (
-          usedUnits + 1 > 2000 ||
-          dayUnits + 1 > 300 ||
-          session + 1 > 120 ||
-          now - ledger.last < 1400
-        )
-          return false;
+        if (usedUnits + 1 > USAGE_LIMITS.lifetime) return "lifetime_limit";
+        if (dayUnits + 1 > USAGE_LIMITS.daily) return "daily_limit";
+        if (now - ledger.last < 1400) return "check_rate_limit";
         ledger.reservedUnits = usedUnits + 1;
         ledger.dailyUnits = dayUnits + 1;
         ledger.calls++;
@@ -199,10 +203,13 @@ export class Budget extends DurableObject<Env> {
         ledger.unknownUsage++;
         await tx.put("ledger", ledger);
         await tx.put(`session:${input.session}`, session + 1);
-        return true;
+        return null;
       });
-      if (!allowed)
-        return json({ error: "Private demo usage limit reached" }, 429);
+      if (rejection)
+        return json(
+          { error: usageLimitMessage(rejection), code: rejection },
+          429,
+        );
       const start = Date.now();
       let raw: unknown;
       try {

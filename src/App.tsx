@@ -1,3 +1,4 @@
+import { USAGE_LIMITS, usageLimitMessage } from "./limits";
 import { FLASH } from "./model";
 import { drawPreviewFrame } from "./geometry";
 import {
@@ -225,12 +226,7 @@ export default function App() {
       runningRef.current = false;
       setRunning(false);
       setMessage("Add a rule to start checking.");
-    } else if (
-      ready &&
-      checkingIntent.current &&
-      !document.hidden &&
-      count.current < 120
-    ) {
+    } else if (ready && checkingIntent.current && !document.hidden) {
       runningRef.current = true;
       setRunning(true);
       setMessage("Rules updated. Checking your scene.");
@@ -255,10 +251,6 @@ export default function App() {
       return;
     }
     checkingIntent.current = true;
-    if (count.current >= 120) {
-      setMessage("Session limit reached. Reload to begin a new session.");
-      return;
-    }
     invalidate();
     runningRef.current = true;
     setRunning(true);
@@ -425,11 +417,6 @@ export default function App() {
       if (!runningRef.current || busy.current || document.hidden) return;
       const active = rulesRef.current.filter((r) => r.enabled);
       if (!active.length) return;
-      if (count.current >= 120) {
-        pause();
-        setMessage("120 checks complete. Session paused to limit usage.");
-        return;
-      }
       const frame = takeFrame();
       if (!frame) return;
       const previous = lastSignature.current;
@@ -505,7 +492,7 @@ export default function App() {
           }
           throw new Error(
             response.status === 429
-              ? "Usage limit reached. Live checking is paused."
+              ? usageLimitMessage(lastCheckFailure.current.code)
               : response.status === 401 || response.status === 403
                 ? "Your private session needs a refresh. Sign in again."
                 : "Could not check this frame. Retrying…",
@@ -634,7 +621,7 @@ export default function App() {
                   lastCheckFailure.current.status === 403
                 ? "Your private session needs a refresh. Sign in again."
                 : lastCheckFailure.current.status === 429
-                  ? "Usage limit reached. Live checking is paused."
+                  ? usageLimitMessage(lastCheckFailure.current.code)
                   : "Could not check this frame. See Details for diagnostics.",
           );
         }
@@ -853,10 +840,6 @@ export default function App() {
     }
   }
   function toggleArm() {
-    if (count.current >= 120) {
-      setMessage("Session limit reached. Reload to begin a new session.");
-      return;
-    }
     if (armRef.current) {
       armRef.current = false;
       setArmed(false);
@@ -1529,6 +1512,11 @@ export default function App() {
                 reset it. Server budget reservations are separate conservative
                 limits, not measured spend.
               </p>
+              {lastCheckFailure.current?.status === 429 && (
+                <p role="status">
+                  {usageLimitMessage(lastCheckFailure.current.code)}
+                </p>
+              )}
               <a
                 className="pricing-link"
                 href="https://developers.cloudflare.com/workers-ai/models/clef-flash/"
@@ -1569,10 +1557,19 @@ export default function App() {
                 disarm it.
               </p>
               <p>
-                Live checks pause in the background. A session allows up to 120
-                Flash checks. A still scene is checked less often. Results can
-                be uncertain; this is a visual demo, not a safety system.
+                Live checks pause in the background. There is no per-page check
+                limit. Shared reservations allow{" "}
+                {USAGE_LIMITS.daily.toLocaleString("en-US")} units per UTC day
+                and {USAGE_LIMITS.lifetime.toLocaleString("en-US")} over the
+                lifetime of this demo. Reloading does not reset them. A still
+                scene is checked less often. Results can be uncertain; this is a
+                visual demo, not a safety system.
               </p>
+              {lastCheckFailure.current?.status === 429 && (
+                <p role="status">
+                  {usageLimitMessage(lastCheckFailure.current.code)}
+                </p>
+              )}
               <a
                 className="pricing-link"
                 href="https://developers.cloudflare.com/workers-ai/models/clef-flash/"
