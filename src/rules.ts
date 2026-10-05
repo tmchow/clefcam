@@ -53,6 +53,13 @@ export const presets: Rule[] = [
     "book",
   ],
   [
+    "hot-dog",
+    "Hot dog",
+    "At least one hot dog food, a sausage served in a split bun, is clearly visible. A dog animal does not satisfy this condition.",
+    "Objects",
+    "hot-dog",
+  ],
+  [
     "white",
     "Mostly white background",
     "The background behind the foreground subject is mostly white or off-white. A white object or countertop alone does not satisfy this.",

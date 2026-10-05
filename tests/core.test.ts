@@ -88,3 +88,23 @@ it("does not accept an aggregate answer with the wrong type", () => {
     ),
   ).toEqual({ a: "uncertain", b: "uncertain" });
 });
+it("serializes the Hot dog food condition into the model question", () => {
+  const rule = presets.find((r) => r.id === "hot-dog")!;
+  const input = modelInput({
+    image: "fixture",
+    rules: [rule],
+    version: 1,
+    session: "fixture",
+  });
+  expect(input.questions).toMatchObject({
+    "hot-dog": {
+      type: "noul",
+      instructions: expect.stringContaining("a sausage served in a split bun"),
+    },
+  });
+  expect(input.questions).toMatchObject({
+    "hot-dog": {
+      instructions: expect.stringContaining("A dog animal does not satisfy"),
+    },
+  });
+});

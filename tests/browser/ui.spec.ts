@@ -114,3 +114,55 @@ test("gesture conflict can replace or retain explicitly", async ({ page }) => {
   await page.getByRole("button", { name: "Keep both gestures" }).click();
   await expect(page.getByText("2 of 6 rules selected")).toBeVisible();
 });
+
+test("Hot dog is an optional Objects preset that can be selected and removed", async ({
+  page,
+}) => {
+  await fakeCamera(page);
+  const sent: { id: string; text: string }[][] = [];
+  await page.route("**/api/evaluate", (route) => {
+    const input = route.request().postDataJSON();
+    sent.push(input.rules);
+    return route.fulfill({
+      json: {
+        version: input.version,
+        complete: true,
+        states: { "hot-dog": "unmet" },
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open camera", exact: true }).tap();
+  await expect(
+    page.getByRole("button", { name: "Resume live checking" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Add rule", exact: true }).tap();
+  await page.getByRole("button", { name: "Objects", exact: true }).tap();
+  const preset = page.getByRole("button", {
+    name: "Hot dog Objects",
+    exact: true,
+  });
+  await expect(preset).toHaveAttribute("aria-pressed", "false");
+  await preset.tap();
+  await expect(preset).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: "private/hot-dog/picker.png" });
+  await page.getByRole("button", { name: "Done", exact: true }).tap();
+  await expect.poll(() => sent.length).toBeGreaterThan(0);
+  expect(sent[0]).toEqual([
+    {
+      id: "hot-dog",
+      text: expect.stringContaining("a sausage served in a split bun"),
+    },
+  ]);
+  await page.getByRole("button", { name: "Add rule", exact: true }).tap();
+  await page.getByRole("button", { name: "Objects", exact: true }).tap();
+  await preset.tap();
+  await expect(preset).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Done", exact: true }).tap();
+  await expect(
+    page.getByRole("button", { name: "Resume live checking" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Hot dog (Checking|Not yet|Paused)/ }),
+  ).toHaveCount(0);
+});

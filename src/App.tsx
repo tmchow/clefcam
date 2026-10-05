@@ -48,6 +48,12 @@ import {
   type Category,
 } from "./rules";
 function Icon({ name, size = 22 }: { name: string; size?: number }) {
+  if (name === "hot-dog")
+    return (
+      <span aria-hidden="true" style={{ fontSize: size, lineHeight: 1 }}>
+        🌭
+      </span>
+    );
   let I;
   switch (name) {
     case "thumb":
